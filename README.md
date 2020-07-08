@@ -1,3 +1,0 @@
-Nguyễn Lâm Quỳnh
-18521326
-KHTN2018.UIT
