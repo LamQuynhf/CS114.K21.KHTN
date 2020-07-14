@@ -8,10 +8,10 @@ import numpy as np
 import os
 import glob
 import warnings
+from skimage.feature import hog
 
-import mahotas
-
-
+threshold = 60  #  BINARY threshold
+blurValue = 41
 
 
 font = cv2.FONT_HERSHEY_SIMPLEX 
@@ -23,13 +23,14 @@ org = (50, 50)
 fontScale = 1
    
 # Blue color in BGR 
-color = (255, 0, 0) 
+color = (255,255,255) 
   
 # Line thickness of 2 px 
 thickness = 2
 
 #load model
-clf = load('weight.joblib') 
+# clf = load('weight5.joblib') 
+clf = load('weight_scale.joblib') 
 
 camera = cv2.VideoCapture(0)
 import time   
@@ -37,30 +38,49 @@ import time
 bgSubtractor = cv2.createBackgroundSubtractorMOG2(history=10, varThreshold=30, detectShadows=False)
 
 
-def fd_hu_moments(image):
-    # image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    feature = cv2.HuMoments(cv2.moments(image)).flatten()
-    return feature
 
-def fd_haralick(image):
-    # convert the image to grayscale
-    # gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    # compute the haralick texture feature vector
-    haralick = mahotas.features.haralick(image).mean(axis=0)
-    # return the result
-    return haralick
+# def extract_feature(img):
+#     contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+#     if len(contours) <1:
+#         return False
+#     ac=np.hstack([contours[i].flatten() for i in range(len(contours))])
+#     l=ac.shape[0]
+#     if l<10:
+#         return False
+#     else:
+#         ac=ac.reshape(int(l/2),2)
+#         (x,y),(MA,ma),angle = cv2.fitEllipse(ac)
+#         area = cv2.contourArea(ac)
+#         # Tính diện tích bouding box
+#         x,y,w,h = cv2.boundingRect(ac)
+#         rect_area = w*h
+#         # Tính độ phủ
+#         extent = float(area)/rect_area
+#         H = hog(img, orientations=9, pixels_per_cell=(32, 32),cells_per_block=(2,2), transform_sqrt=True, block_norm="L1")
+#         return np.hstack([angle,rect_area,H])
 
-def extract_feature(image):
-  image = cv2.resize(image, fixed_size)
-  frame = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-  ret,thresh = cv2.threshold(frame,125,255,cv2.THRESH_TOZERO)
-  fv_hu_moments = fd_hu_moments(thresh)
-  fv_haralick   = fd_haralick(thresh)
-  feature=np.hstack([fv_haralick, fv_hu_moments])
-  # print(feature)
-  normalize=[i/255 for i in feature]
-  return normalize
 
+
+
+def extract_feature(img):
+    contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    if len(contours) <1:
+        return False
+    ac=np.hstack([contours[i].flatten() for i in range(len(contours))])
+    l=ac.shape[0]
+    if l<10:
+        return False
+    else:
+        ac=ac.reshape(int(l/2),2)
+        (x,y),(MA,ma),angle = cv2.fitEllipse(ac)
+        area = cv2.contourArea(ac)
+        # Tính diện tích bouding box
+        x,y,w,h = cv2.boundingRect(ac)
+        rect_area = w*h
+        # Tính độ phủ
+        extent = float(area)/rect_area
+        H = hog(img, orientations=9, pixels_per_cell=(32, 32),cells_per_block=(2,2), transform_sqrt=True, block_norm="L1")
+        return np.hstack([(angle/180),extent,H])
 
 def bgSubMasking(self, frame):
     """Create a foreground (hand) mask
@@ -397,8 +417,7 @@ def getLabel(id):
         y='UP'
     return y
     
-# KEY = {"UP":1,"DOWN":2,"LEFT":3,"RIGHT":4}
-# 'down', 'left', 'right', 'up'
+
 def convertKey(id):
     if id==0:
         return 2
@@ -435,90 +454,74 @@ def main():
     while(camera.isOpened() and endgame!=1):
             ret, frame = camera.read()
             frame=cv2.flip(frame,1)
-            frame=frame[40:400,50:350]
+            frame=frame[100:450,400:700]
+            frame = cv2.resize(frame, fixed_size)
             #background subtractor
-            # frame=bgSubMasking(frame,frame)
+            fram=bgSubMasking(frame,frame)
+            gray = cv2.cvtColor(fram, cv2.COLOR_BGR2GRAY)
+            blur = cv2.GaussianBlur(gray, (blurValue, blurValue), 0)
+            ret, thresh = cv2.threshold(blur, threshold, 255, cv2.THRESH_BINARY)
             features=[]
-            feature=extract_feature(frame)
-            features.append(feature)
-            y_predict=clf.predict(features)
-            id=getLabel(y_predict)
-            frame = cv2.putText(frame, id, org, font, fontScale, color, thickness, cv2.LINE_AA) 
-            keyPress=convertKey(y_predict)        
-            cv2.imshow('img',frame)
-            cv2.moveWindow('img',1200,100)
-            gameClock.tick(FPS)
+            feature=extract_feature(thresh)
+            if type(feature)!=bool:
+                features.append(feature)
+                y_predict=clf.predict(features)
+                id=getLabel(y_predict)
+                fram = cv2.putText(thresh, id, org, font, fontScale, color, thickness, cv2.LINE_AA) 
+                keyPress=convertKey(y_predict)        
+                cv2.imshow('img',fram)
+                cv2.moveWindow('img',1200,100)
+                cv2.imshow('original',frame)
+                cv2.moveWindow('original',1200,450)
+                gameClock.tick(FPS)
 
-            #Input
-            # keyPress = getKey()
-            # keyPress=convertKey(y_predict)
-            print(keyPress)
-
+                if keyPress == "exit":
+                    endgame = 1
             
-            # print(keyPress)
-            if keyPress == "exit":
-                endgame = 1
-        
-            #Collision check
-            checkLimits(mySnake)
-            if(mySnake.checkCrash()== True):
-                endGame()
-                
-            for myApple in apples:
-                if(myApple.state == 1):
-                    if(checkCollision(mySnake.getHead(),SNAKE_SIZE,myApple,APPLE_SIZE)==True):
-                        mySnake.grow()
-                        myApple.state = 0
-                        score+=5
-                        eaten_apple=True
-                
-
-            #Position Update
-            if(keyPress):
-                mySnake.setDirection(keyPress)    
-            mySnake.move()
-            
-            
-            
-            #Respawning apples
-            if(eaten_apple == True):
-                eaten_apple = False
-                respawnApple(apples,0,mySnake.getHead().x,mySnake.getHead().y)
-
-            #Drawing
-            screen.fill(background_color)
-            for myApple in apples:
-                if(myApple.state == 1):
-                    myApple.draw(screen)
+                #Collision check
+                checkLimits(mySnake)
+                if(mySnake.checkCrash()== True):
+                    endGame()
                     
-            mySnake.draw(screen)
-            drawScore(score)
-            gameTime = pygame.time.get_ticks() - startTime
-            drawGameTime(gameTime)
-            
-            pygame.display.flip()
-            pygame.display.update()
-            if cv2.waitKey(25) & 0xFF == ord('q'):
-                        break
-    # else: 
-    #     break
-    
-       
-        
+                for myApple in apples:
+                    if(myApple.state == 1):
+                        if(checkCollision(mySnake.getHead(),SNAKE_SIZE,myApple,APPLE_SIZE)==True):
+                            mySnake.grow()
+                            myApple.state = 0
+                            score+=5
+                            eaten_apple=True
+                    
 
-# while(camera.isOpened()):
-#     ret, frame = camera.read()
-#     if ret == True:
-#         frame=cv2.flip(frame,1)
-#         frame=frame[40:400,50:350]
-#         cv2.imshow('img',frame)
-#         cv2.moveWindow('img',1200,600)
-#         if cv2.waitKey(25) & 0xFF == ord('q'):
-#             break
-#     else: 
-#         break
+                #Position Update
+                if(keyPress):
+                    mySnake.setDirection(keyPress)    
+                mySnake.move()
+                
+                
+                
+                #Respawning apples
+                if(eaten_apple == True):
+                    eaten_apple = False
+                    respawnApple(apples,0,mySnake.getHead().x,mySnake.getHead().y)
 
-fixed_size=(290,350)
+                #Drawing
+                screen.fill(background_color)
+                for myApple in apples:
+                    if(myApple.state == 1):
+                        myApple.draw(screen)
+                        
+                mySnake.draw(screen)
+                drawScore(score)
+                gameTime = pygame.time.get_ticks() - startTime
+                drawGameTime(gameTime)
+                
+                pygame.display.flip()
+                pygame.display.update()
+                if cv2.waitKey(25) & 0xFF == ord('q'):
+                            break
+
+
+fixed_size=(320,320)
 main()
 camera.release()
 cv2.destroyAllWindows()
