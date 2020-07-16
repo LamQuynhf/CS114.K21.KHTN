@@ -39,28 +39,6 @@ bgSubtractor = cv2.createBackgroundSubtractorMOG2(history=10, varThreshold=30, d
 
 
 
-# def extract_feature(img):
-#     contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-#     if len(contours) <1:
-#         return False
-#     ac=np.hstack([contours[i].flatten() for i in range(len(contours))])
-#     l=ac.shape[0]
-#     if l<10:
-#         return False
-#     else:
-#         ac=ac.reshape(int(l/2),2)
-#         (x,y),(MA,ma),angle = cv2.fitEllipse(ac)
-#         area = cv2.contourArea(ac)
-#         # Tính diện tích bouding box
-#         x,y,w,h = cv2.boundingRect(ac)
-#         rect_area = w*h
-#         # Tính độ phủ
-#         extent = float(area)/rect_area
-#         H = hog(img, orientations=9, pixels_per_cell=(32, 32),cells_per_block=(2,2), transform_sqrt=True, block_norm="L1")
-#         return np.hstack([angle,rect_area,H])
-
-
-
 
 def extract_feature(img):
     contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -387,22 +365,6 @@ def exitScreen():
 
 
 
-def bgSubMasking(self, frame):
-    """Create a foreground (hand) mask
-    @param frame: The video frame
-    @return: A masked frame
-    """
-    fgmask = bgSubtractor.apply(frame, learningRate=0)    
-
-    kernel = np.ones((4, 4), np.uint8)
-    
-    # The effect is to remove the noise in the background
-    fgmask = cv2.morphologyEx(fgmask, cv2.MORPH_OPEN, kernel, iterations=2)
-    # To close the holes in the objects
-    fgmask = cv2.morphologyEx(fgmask, cv2.MORPH_CLOSE, kernel, iterations=2)
-    
-    # Apply the mask on the frame and return
-    return cv2.bitwise_and(frame, frame, mask=fgmask)
 
 
 def getLabel(id):
