@@ -1,13 +1,9 @@
 import pickle
 from joblib import dump, load
 import cv2
-import sys,os,pygame,random,math
+import sys,pygame,random,math
 import numpy as np
 import math
-import numpy as np
-import os
-import glob
-import warnings
 from skimage.feature import hog
 
 threshold = 60  #  BINARY threshold
