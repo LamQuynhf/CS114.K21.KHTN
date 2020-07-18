@@ -21,7 +21,22 @@ org = (50, 50)
   
 # fontScale 
 fontScale = 1
-   
+learningRate = 0
+bgSubThreshold = 50
+
+bgModel = cv2.createBackgroundSubtractorMOG2(0, bgSubThreshold)
+
+def removeBG(frame):
+    fgmask = bgModel.apply(frame,learningRate=learningRate)
+
+    kernel = np.ones((3, 3), np.uint8)
+    fgmask = cv2.erode(fgmask, kernel, iterations=1)
+    res = cv2.bitwise_and(frame, frame, mask=fgmask)
+    return res
+
+
+
+
 # Blue color in BGR 
 color = (255,255,255) 
   
@@ -29,35 +44,10 @@ color = (255,255,255)
 thickness = 2
 
 #load model
-# clf = load('weight5.joblib') 
-clf = load('weight_scale.joblib') 
+clf = load('weight_hog.joblib') 
 
 camera = cv2.VideoCapture(0)
 import time   
-
-bgSubtractor = cv2.createBackgroundSubtractorMOG2(history=10, varThreshold=30, detectShadows=False)
-
-
-
-# def extract_feature(img):
-#     contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-#     if len(contours) <1:
-#         return False
-#     ac=np.hstack([contours[i].flatten() for i in range(len(contours))])
-#     l=ac.shape[0]
-#     if l<10:
-#         return False
-#     else:
-#         ac=ac.reshape(int(l/2),2)
-#         (x,y),(MA,ma),angle = cv2.fitEllipse(ac)
-#         area = cv2.contourArea(ac)
-#         # Tính diện tích bouding box
-#         x,y,w,h = cv2.boundingRect(ac)
-#         rect_area = w*h
-#         # Tính độ phủ
-#         extent = float(area)/rect_area
-#         H = hog(img, orientations=9, pixels_per_cell=(32, 32),cells_per_block=(2,2), transform_sqrt=True, block_norm="L1")
-#         return np.hstack([angle,rect_area,H])
 
 
 
@@ -65,58 +55,27 @@ bgSubtractor = cv2.createBackgroundSubtractorMOG2(history=10, varThreshold=30, d
 def extract_feature(img):
     contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     if len(contours) <1:
-        return False
-    ac=np.hstack([contours[i].flatten() for i in range(len(contours))])
-    l=ac.shape[0]
-    if l<10:
-        return False
+            return False
     else:
-        ac=ac.reshape(int(l/2),2)
-        (x,y),(MA,ma),angle = cv2.fitEllipse(ac)
-        area = cv2.contourArea(ac)
-        # Tính diện tích bouding box
-        x,y,w,h = cv2.boundingRect(ac)
-        rect_area = w*h
-        # Tính độ phủ
-        extent = float(area)/rect_area
-        H = hog(img, orientations=9, pixels_per_cell=(32, 32),cells_per_block=(2,2), transform_sqrt=True, block_norm="L1")
-        return np.hstack([(angle/180),extent,H])
+        cnt = max(contours, key = lambda x: cv2.contourArea(x))
+        if len(cnt)<6:
+            return False
+        else:
+            (x,y),(MA,ma),angle = cv2.fitEllipse(cnt)
+            area = cv2.contourArea(cnt)
+            # Tính diện tích bouding box
+            x,y,w,h = cv2.boundingRect(cnt)
+            rect_area = w*h
+            # Tính độ phủ
+            extent = float(area)/rect_area
+            #focus roi
+            roi = img[y:y+h, x:x+w]
+            roi = cv2.resize(roi, (150, 150))
+            H = hog(roi, orientations=9, pixels_per_cell=(15, 15),cells_per_block=(2,2), transform_sqrt=True, block_norm="L1")
+            return np.hstack([(angle/180),extent,H])
 
-def bgSubMasking(self, frame):
-    """Create a foreground (hand) mask
-    @param frame: The video frame
-    @return: A masked frame
-    """
-    fgmask = bgSubtractor.apply(frame, learningRate=0)    
 
-    kernel = np.ones((4, 4), np.uint8)
-    
-    # The effect is to remove the noise in the background
-    fgmask = cv2.morphologyEx(fgmask, cv2.MORPH_OPEN, kernel, iterations=2)
-    # To close the holes in the objects
-    fgmask = cv2.morphologyEx(fgmask, cv2.MORPH_CLOSE, kernel, iterations=2)
-    
-    # Apply the mask on the frame and return
-    return cv2.bitwise_and(frame, frame, mask=fgmask)
 
-def histMasking(frame, handHist):
-    """Create the HSV masking
-    @param frame: The video frame
-    @param handHist: The histogram generated
-    @return: A masked frame
-    """
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    dst = cv2.calcBackProject([hsv], [0, 1], handHist, [0, 180, 0, 256], 1)
-    disc = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (21, 21))
-    cv2.filter2D(dst, -1, disc, dst)
-    # dst is now a probability map
-    # Use binary thresholding to create a map of 0s and 1s
-    # 1 means the pixel is part of the hand and 0 means not
-    ret, thresh = cv2.threshold(dst, 150, 255, cv2.THRESH_BINARY)
-    kernel = np.ones((5, 5), np.uint8)
-    thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel, iterations=7)
-    thresh = cv2.merge((thresh, thresh, thresh))
-    return cv2.bitwise_and(frame, thresh)   
 
 
 pygame.init()
@@ -133,15 +92,10 @@ SCREEN_HEIGHT = 600
 SCREEN_WIDTH = 800
 FPS = 25
 KEY = {"UP":1,"DOWN":2,"LEFT":3,"RIGHT":4}
-#Screen initialization
+# #Screen initialization
 screen = pygame.display.set_mode((SCREEN_WIDTH,SCREEN_HEIGHT),pygame.HWSURFACE)
-# set where the display will move to
-# x=200
-# y=200
-# os.environ['SDL_VIDEO_WINDOW_POS']='%d,%d' %(x,y)
 
-#resize the screen causing it to move to x y set by environ
-pygame.display.set_mode((501,200))
+
 
 #set the size back to normal
 pygame.display.set_mode((800,600))
@@ -153,8 +107,6 @@ game_over_font = pygame.font.Font(None,46)
 play_again_font = score_numb_font
 score_msg = score_font.render("Score:",1,pygame.Color("green"))
 score_msg_size = score_font.size("Score")
-#icon = pygame.image.load("nsnake32.png")
-#pygame.display.set_icon(icon)
 
 background_color = pygame.Color(74,74,74)
 black = pygame.Color(0,0,0)
@@ -387,23 +339,6 @@ def exitScreen():
 
 
 
-def bgSubMasking(self, frame):
-    """Create a foreground (hand) mask
-    @param frame: The video frame
-    @return: A masked frame
-    """
-    fgmask = bgSubtractor.apply(frame, learningRate=0)    
-
-    kernel = np.ones((4, 4), np.uint8)
-    
-    # The effect is to remove the noise in the background
-    fgmask = cv2.morphologyEx(fgmask, cv2.MORPH_OPEN, kernel, iterations=2)
-    # To close the holes in the objects
-    fgmask = cv2.morphologyEx(fgmask, cv2.MORPH_CLOSE, kernel, iterations=2)
-    
-    # Apply the mask on the frame and return
-    return cv2.bitwise_and(frame, frame, mask=fgmask)
-
 
 def getLabel(id):
     y=None
@@ -416,7 +351,6 @@ def getLabel(id):
     else:
         y='UP'
     return y
-    
 
 def convertKey(id):
     if id==0:
@@ -429,6 +363,7 @@ def convertKey(id):
         return 1
 
 time.sleep(2)
+keyPress=1
 def main():
     score = 0
 
@@ -454,72 +389,84 @@ def main():
     while(camera.isOpened() and endgame!=1):
             ret, frame = camera.read()
             frame=cv2.flip(frame,1)
-            frame=frame[100:450,400:700]
+            frame=frame[100:400,400:700]
             frame = cv2.resize(frame, fixed_size)
-            #background subtractor
-            fram=bgSubMasking(frame,frame)
+            fram=removeBG(frame)
+            cv2.imshow("remove Background",fram)
+            cv2.moveWindow('remove Background',1600,100)
+
             gray = cv2.cvtColor(fram, cv2.COLOR_BGR2GRAY)
+            # blur = cv2.GaussianBlur(gray, (25, 25), 0)
             blur = cv2.GaussianBlur(gray, (blurValue, blurValue), 0)
-            ret, thresh = cv2.threshold(blur, threshold, 255, cv2.THRESH_BINARY)
+            ret, thresh = cv2.threshold(blur,threshold, 255, cv2.THRESH_BINARY)
+
+
+
             features=[]
             feature=extract_feature(thresh)
-            if type(feature)!=bool:
+            if type(feature)==bool:
+                id='None'
+                keyPress=1
+            # if type(feature)!=bool:
+            else:
                 features.append(feature)
                 y_predict=clf.predict(features)
                 id=getLabel(y_predict)
-                fram = cv2.putText(thresh, id, org, font, fontScale, color, thickness, cv2.LINE_AA) 
-                keyPress=convertKey(y_predict)        
-                cv2.imshow('img',fram)
-                cv2.moveWindow('img',1200,100)
-                cv2.imshow('original',frame)
-                cv2.moveWindow('original',1200,450)
-                gameClock.tick(FPS)
+                keyPress=convertKey(y_predict)
 
-                if keyPress == "exit":
-                    endgame = 1
+            fram = cv2.putText(thresh, id, org, font, fontScale, color, thickness, cv2.LINE_AA) 
+            # keyPress=convertKey(y_predict)        
+            cv2.imshow('binary img',fram)
+            cv2.moveWindow('binary img',1200,100)
+            cv2.imshow('original',frame)
+            cv2.moveWindow('original',1200,500)
+            gameClock.tick(FPS)
+
+            if keyPress == "exit":
+                endgame = 1
+        
+            #Collision check
+            checkLimits(mySnake)
+            if(mySnake.checkCrash()== True):
+                endGame()
+                
+            for myApple in apples:
+                if(myApple.state == 1):
+                    if(checkCollision(mySnake.getHead(),SNAKE_SIZE,myApple,APPLE_SIZE)==True):
+                        mySnake.grow()
+                        myApple.state = 0
+                        score+=5
+                        eaten_apple=True
+                
+
+            #Position Update
+            if(keyPress):
+                mySnake.setDirection(keyPress)    
+            mySnake.move()
             
-                #Collision check
-                checkLimits(mySnake)
-                if(mySnake.checkCrash()== True):
-                    endGame()
-                    
-                for myApple in apples:
-                    if(myApple.state == 1):
-                        if(checkCollision(mySnake.getHead(),SNAKE_SIZE,myApple,APPLE_SIZE)==True):
-                            mySnake.grow()
-                            myApple.state = 0
-                            score+=5
-                            eaten_apple=True
-                    
+            
+            
+            #Respawning apples
+            if(eaten_apple == True):
+                eaten_apple = False
+                respawnApple(apples,0,mySnake.getHead().x,mySnake.getHead().y)
 
-                #Position Update
-                if(keyPress):
-                    mySnake.setDirection(keyPress)    
-                mySnake.move()
-                
-                
-                
-                #Respawning apples
-                if(eaten_apple == True):
-                    eaten_apple = False
-                    respawnApple(apples,0,mySnake.getHead().x,mySnake.getHead().y)
-
-                #Drawing
-                screen.fill(background_color)
-                for myApple in apples:
-                    if(myApple.state == 1):
-                        myApple.draw(screen)
-                        
-                mySnake.draw(screen)
-                drawScore(score)
-                gameTime = pygame.time.get_ticks() - startTime
-                drawGameTime(gameTime)
-                
-                pygame.display.flip()
-                pygame.display.update()
-                if cv2.waitKey(25) & 0xFF == ord('q'):
+            #Drawing
+            screen.fill(background_color)
+            for myApple in apples:
+                if(myApple.state == 1):
+                    myApple.draw(screen)
+                    
+            mySnake.draw(screen)
+            drawScore(score)
+            gameTime = pygame.time.get_ticks() - startTime
+            drawGameTime(gameTime)
+            
+            pygame.display.flip()
+            pygame.display.update()
+            if cv2.waitKey(25) & 0xFF == ord('q'):
                             break
-
+ 
 
 fixed_size=(320,320)
 main()
