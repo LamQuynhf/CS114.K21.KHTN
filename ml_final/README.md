@@ -1,12 +1,24 @@
 #Environment
-##Platform: python3
-##Libraries:pygame,skimage,numpy
-###Hãy chắc chắn rằng bạn đã cài đặt thư viện scikit-image và numpy, nếu chưa hãy cài đặt:
-###python3 -m pip install scikit-image==0.14.2 
-###python3 -m pip install numpy==1.15
 
+##Platform: python3
+
+##Libraries:pygame,skimage,numpy
+
+###Hãy chắc chắn rằng bạn đã cài đặt thư viện scikit-image và numpy, nếu chưa hãy cài đặt:
+
+
+```
+python3 -m pip install scikit-image==0.14.2 
+```
+
+
+```
+python3 -m pip install numpy==1.15
+```
 
 #Demo video
+
+
 ##File: video_demo.ogv
 
 # Chạy chương trình
@@ -19,6 +31,7 @@ python3 run_demo.py
 #Quy trình
 
 ##Chụp ảnh gốc
+
 ###Quay video từ màn hình và chọn vùng quan tâm
 
 
@@ -41,8 +54,9 @@ frame=frame[100:400,400:700]
 ##Background subtraction
 
 ###Sử dụng background subtraction method được gọi là Gaussian Mixture-based Background/Foreground Segmentation Algorithm để trừ nền.
-###Ở đây tôi sử dụng  function BackgroundSubtractorMOG2 của opencv để trừ nền
 
+
+###Ở đây tôi sử dụng  function BackgroundSubtractorMOG2 của opencv để trừ nền
 
 
 ```
