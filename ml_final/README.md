@@ -1,10 +1,10 @@
-#Environment
+# Environment
 
-##Platform: python3
+## Platform: python3
 
-##Libraries:pygame,skimage,numpy
+## Libraries:pygame,skimage,numpy
 
-###Hãy chắc chắn rằng bạn đã cài đặt thư viện scikit-image và numpy, nếu chưa hãy cài đặt:
+### Hãy chắc chắn rằng bạn đã cài đặt thư viện scikit-image và numpy, nếu chưa hãy cài đặt:
 
 
 ```
@@ -16,10 +16,9 @@ python3 -m pip install scikit-image==0.14.2
 python3 -m pip install numpy==1.15
 ```
 
-#Demo video
+# Demo video
 
-
-##File: video_demo.ogv
+## File: video_demo.ogv
 
 # Chạy chương trình
 
@@ -28,18 +27,18 @@ python3 -m pip install numpy==1.15
 python3 run_demo.py
 ```
 
-#Quy trình
+# Quy trình
 
-##Chụp ảnh gốc
+## Chụp ảnh gốc
 
-###Quay video từ màn hình và chọn vùng quan tâm
+### Quay video từ màn hình và chọn vùng quan tâm
 
 
 ```
 frame=frame[100:400,400:700]
 ```
 
-###Đưa bàn tay nằm trọn vào trong khung hình hiện trên screen
+### Đưa bàn tay nằm trọn vào trong khung hình hiện trên screen
 
 
 
@@ -51,33 +50,33 @@ frame=frame[100:400,400:700]
 
 
 
-##Background subtraction
+## Background subtraction
 
-###Sử dụng background subtraction method được gọi là Gaussian Mixture-based Background/Foreground Segmentation Algorithm để trừ nền.
+### Sử dụng background subtraction method được gọi là Gaussian Mixture-based Background/Foreground Segmentation Algorithm để trừ nền.
 
 
-###Ở đây tôi sử dụng  function BackgroundSubtractorMOG2 của opencv để trừ nền
+### Ở đây tôi sử dụng  function BackgroundSubtractorMOG2 của opencv để trừ nền
 
 
 ```
 bgModel = cv2.BackgroundSubtractorMOG2(0, bgSubThreshold)
 ```
 
-###Áp dụng vào từng frame
+### Áp dụng vào từng frame
 
 
 ```
 fgmask = bgModel.apply(frame,learningRate=learningRate)
 ```
 
-###Lấy foreground(hand) image
+### Lấy foreground(hand) image
 
 
 ```
 res = cv2.bitwise_and(frame, frame, mask=fgmask)
 ```
 
-####Ảnh lấy được
+#### Ảnh lấy được
 
 
 <figure>
@@ -87,16 +86,16 @@ res = cv2.bitwise_and(frame, frame, mask=fgmask)
 </figure>
 
 
-##Gaussian blur & Threshold
+## Gaussian blur & Threshold
 
-###Convert gray scale
+### Convert gray scale
 
 
 ```
 gray = cv2.cvtColor(fram, cv2.COLOR_BGR2GRAY)
 ```
 
-###Dùng Gaussian blur 
+### Dùng Gaussian blur 
 
 
 ```
@@ -110,7 +109,7 @@ blur = cv2.GaussianBlur(gray, (blurValue, blurValue), 0)
 </figure>
 
 
-###Chuyển về ảnh nhị phân
+### Chuyển về ảnh nhị phân
 
 
 ```
