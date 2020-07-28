@@ -6,6 +6,7 @@ import numpy as np
 import math
 from skimage.feature import hog
 
+
 threshold = 60  #  BINARY threshold
 blurValue = 41
 
@@ -24,7 +25,6 @@ bgModel = cv2.createBackgroundSubtractorMOG2(0, bgSubThreshold)
 
 def removeBG(frame):
     fgmask = bgModel.apply(frame,learningRate=learningRate)
-
     kernel = np.ones((3, 3), np.uint8)
     fgmask = cv2.erode(fgmask, kernel, iterations=1)
     res = cv2.bitwise_and(frame, frame, mask=fgmask)
@@ -40,7 +40,7 @@ color = (255,255,255)
 thickness = 2
 
 #load model
-clf = load('weight_hog.joblib') 
+clf = load('weight2h.joblib') 
 
 camera = cv2.VideoCapture(0)
 import time   
@@ -57,18 +57,12 @@ def extract_feature(img):
         if len(cnt)<6:
             return False
         else:
-            (x,y),(MA,ma),angle = cv2.fitEllipse(cnt)
-            area = cv2.contourArea(cnt)
-            # Tính diện tích bouding box
             x,y,w,h = cv2.boundingRect(cnt)
-            rect_area = w*h
-            # Tính độ phủ
-            extent = float(area)/rect_area
             #focus roi
             roi = img[y:y+h, x:x+w]
             roi = cv2.resize(roi, (150, 150))
             H = hog(roi, orientations=9, pixels_per_cell=(15, 15),cells_per_block=(2,2), transform_sqrt=True, block_norm="L1")
-            return np.hstack([(angle/180),extent,H])
+            return np.hstack(H)
 
 
 
@@ -335,7 +329,6 @@ def exitScreen():
 
 
 
-
 def getLabel(id):
     y=None
     if id==0:
@@ -395,7 +388,8 @@ def main():
             # blur = cv2.GaussianBlur(gray, (25, 25), 0)
             blur = cv2.GaussianBlur(gray, (blurValue, blurValue), 0)
             ret, thresh = cv2.threshold(blur,threshold, 255, cv2.THRESH_BINARY)
-
+            cv2.imshow('blur',blur)
+            cv2.moveWindow('blur',1600,500)
 
 
             features=[]
